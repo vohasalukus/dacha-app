@@ -1,25 +1,95 @@
-import React, { useState } from 'react';
-import { View, TextInput, FlatList, Text, StyleSheet, Image, TouchableOpacity} from 'react-native';
-import {Link, useNavigation} from 'expo-router';
-import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+    View, TextInput, FlatList, Text, StyleSheet, Image,
+    TouchableOpacity, ActivityIndicator, Button
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import {usePublicHousesStore} from "@/store/publicHousesStore";
+import {useFilterStore} from "@/store/filterStore";
+import FilterModal from './FilterModal';
+import { RefreshControl } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { summerHouses } from '../data/mockData';
 
-const HomePage = () => {
+export default function HomePage() {
+    const navigation = useNavigation();
     const [searchQuery, setSearchQuery] = useState('');
-// Изменяем состояние каждый раз, когда пользователь начинает искать что-то и перерисовывается все это через setSearchQuery
+    const [loading, setLoading] = useState(true);
+    const [showFilter, setShowFilter] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const filteredHouses = summerHouses.filter(house =>
-        house.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        house.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-// Фильтруем те значения которые нам нужны и уже при помощи setSQ идет поиск по данным, правда с API делается чуть по другому
-    const navigation = useNavigation()
+
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchApprovedHouses();
+        setRefreshing(false);
+    };
+
+    useEffect(() => {
+        AsyncStorage.setItem('debug-test', 'работает');
+        AsyncStorage.getItem('debug-test').then(value => {
+            console.log('🧪 AsyncStorage работает:', value);
+        });
+    }, []);
+
+
+    const { houses, fetchApprovedHouses } = usePublicHousesStore();
+    const {
+        wifi, sauna, pool, billiards,
+        minPrice, maxPrice,
+        region, district, city, country
+    } = useFilterStore();
+
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    const filteredHouses = houses.filter(h => {
+        const matchesText =
+            normalizedQuery === '' || (
+                (h.name || '').toLowerCase().includes(normalizedQuery) ||
+                (h.description || '').toLowerCase().includes(normalizedQuery) ||
+                (h.city || '').toLowerCase().includes(normalizedQuery) ||
+                (h.region || '').toLowerCase().includes(normalizedQuery)
+            );
+
+        const price = h.week_day_price || 0;
+        const priceOK =
+            (!minPrice || price >= Number(minPrice)) &&
+            (!maxPrice || price <= Number(maxPrice));
+
+        const regionOK = region === '' || (h.region || '').toLowerCase() === region.toLowerCase();
+        const districtOK = district === '' || (h.district || '').toLowerCase() === district.toLowerCase();
+        const cityOK = city === '' || (h.city || '').toLowerCase() === city.toLowerCase();
+        const countryOK = country === '' || (h.country || '').toLowerCase() === country.toLowerCase();
+
+        const featureOK =
+            (!wifi || !!h.wifi) &&
+            (!sauna || h.sauna === true) &&
+            (!pool || h.indoor_swimming_pool === true || h.outdoor_swimming_pool === true) &&
+            (!billiards || h.billiards === true);
+        // console.log('wifi фильтр:', wifi, 'в доме:', h.name, h.wifi);
+
+        return matchesText && priceOK && regionOK && districtOK && cityOK && countryOK && featureOK;
+    });
+
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            try {
+                await fetchApprovedHouses();
+            } catch (err) {
+                console.error('Ошибка загрузки домов:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, []);
+
+    if (loading) return <ActivityIndicator style={{ marginTop: 40 }} size="large" />;
 
     return (
         <View style={styles.container}>
-            {/*View - это как div в html*/}
-
             <TextInput
                 style={styles.searchInput}
                 placeholder="Поиск дачи..."
@@ -27,55 +97,41 @@ const HomePage = () => {
                 onChangeText={setSearchQuery}
             />
 
-            {/*TextInput - для ввода данных*/}
-            {/*value - хранит то, что храниться в переменной sq (ищет)*/}
-            {/*onChangeText - начинает работать, когда пользователь начинает менять инфу в input и передает все это setSQ (отрисовывает)*/}
-            {/* То есть:
-                1. У тебя searchQuery = ""
+            <Button title="Фильтры" onPress={() => setShowFilter(true)} />
+            <FilterModal visible={showFilter} onClose={() => setShowFilter(false)} />
 
-                2. Пользователь вводит "д"
-
-                3. Срабатывает onChangeText, вызывается setSearchQuery("д")
-
-                4. Обновляется searchQuery = "д"
-
-                5. Поле снова перерисовывается с новым значением — и ты видишь букву "д"
-            */}
-
-            {/* List of summer houses */}
             <FlatList
                 data={filteredHouses}
+                keyExtractor={item => item.id.toString()}
                 renderItem={({ item }) => (
                     <TouchableOpacity
                         style={styles.card}
-                        onPress={() => navigation.navigate('HouseDetail', { id: item.id })}  // Переход на подробности дачи
+                        onPress={() => navigation.navigate('HouseDetail', { id: item.id })}
                     >
-                        <Image source={{ uri: item.imageUrl }} style={styles.houseImage} />
+                        {item.image1 ? (
+                            <Image source={{ uri: item.image1 }} style={styles.houseImage} />
+                        ) : (
+                            <View style={[styles.houseImage, { backgroundColor: '#ccc', justifyContent: 'center', alignItems: 'center' }]}>
+                                <Text>Нет фото</Text>
+                            </View>
+                        )}
                         <View style={styles.cardContent}>
                             <Text style={styles.houseName}>{item.name}</Text>
-                            <Text style={styles.houseDescription}>{item.description}</Text>
+                            <Text numberOfLines={2} style={styles.houseDescription}>{item.description}</Text>
                         </View>
                     </TouchableOpacity>
                 )}
-                keyExtractor={item => item.id}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
             />
-        {/*    Это главная страница!!!!!*/}
-
-        {/*  FlatList - отлично подходит для рендера списков  */}
-        {/*  data={filteredHouses} — список отфильтрованных дач  */}
-        {/*  renderItem={({ item }) => (...)} — как отображать каждую карточку (item — это один объект дачи)  */}
-        {/*  keyExtractor={item => item.id} — обязательный параметр для уникального ключа (иначе будут warning'и) */}
-
         </View>
     );
-};
+}
+
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 10,
-        backgroundColor: '#f9f9f9',
-    },
+    container: { flex: 1, padding: 10, backgroundColor: '#f9f9f9' },
     searchInput: {
         height: 40,
         borderColor: '#ccc',
@@ -95,7 +151,6 @@ const styles = StyleSheet.create({
     houseImage: {
         width: 120,
         height: 120,
-        borderRadius: 10,
     },
     cardContent: {
         flex: 1,
@@ -108,6 +163,5 @@ const styles = StyleSheet.create({
     houseDescription: {
         color: '#777',
     },
-});
 
-export default HomePage;
+});

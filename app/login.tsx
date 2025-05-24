@@ -1,31 +1,38 @@
 // app/login.tsx
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Text } from 'react-native';
+import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 
 export default function LoginScreen() {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const login = useAuthStore(s => s.login);
     const navigation = useNavigation();
 
-    const handleLogin = () => {
-        login(email, password);
-        // вместо navigate('Profile'):
-        navigation.navigate('MainTabs', { screen: 'Home' })
-    };
+    const login = useAuthStore(s => s.login);
 
+    const handleLogin = async () => {
+        try {
+            await login(username, password);
+            navigation.navigate('MainTabs', { screen: 'Home' });
+        } catch (error) {
+            console.error('Ошибка входа:', error);
+            Alert.alert('Ошибка', 'Неверное имя пользователя или пароль');
+        }
+    };
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Войти</Text>
+            <Text style={styles.title}>Вход</Text>
+
             <TextInput
                 style={styles.input}
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
+                placeholder="Имя пользователя"
+                autoCapitalize="none"
+                value={username}
+                onChangeText={setUsername}
             />
+
             <TextInput
                 style={styles.input}
                 placeholder="Пароль"
@@ -33,6 +40,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
             />
+
             <Button title="Войти" onPress={handleLogin} />
             <Button
                 title="Зарегистрироваться"

@@ -1,76 +1,73 @@
-// app/moderation.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
-    View,
-    Text,
-    Button,
-    FlatList,
-    StyleSheet,
-    TouchableOpacity,
-    Alert,
-    RefreshControl,
-    Platform,
-    ToastAndroid,
+    View, Text, Button, FlatList, StyleSheet, TouchableOpacity,
+    Alert, RefreshControl, Platform, ToastAndroid
 } from 'react-native';
 import { useHouseStore, House, HouseStatus } from '../store/houseStore';
 import { useNavigation } from '@react-navigation/native';
 
 export default function ModerationScreen() {
-    const houses = useHouseStore((s) => s.houses);
-    const updateStatus = useHouseStore((s) => s.updateStatus);
+    const houses = useHouseStore(s => s.houses);
+    const updateStatus = useHouseStore(s => s.updateStatus);
+    const fetchHouses = useHouseStore(s => s.fetchHouses);
     const [filter, setFilter] = useState<HouseStatus | 'all'>('all');
     const [refreshing, setRefreshing] = useState(false);
     const navigation = useNavigation();
 
-    const filtered = filter === 'all' ? houses : houses.filter((h) => h.status === filter);
+    useEffect(() => {
+        fetchHouses();
+    }, []);
 
-    // Bulk actions
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchHouses().finally(() => {
+            setRefreshing(false);
+            if (Platform.OS === 'android') {
+                ToastAndroid.show('Список обновлён', ToastAndroid.SHORT);
+            } else {
+                Alert.alert('Обновлено');
+            }
+        });
+    }, []);
+
+    const filtered = filter === 'all' ? houses : houses.filter(h => h.status === filter);
+
     const handleBulk = (status: HouseStatus) => {
-        const pendingIds = houses.filter((h) => h.status === 'pending').map((h) => h.id);
-        if (pendingIds.length === 0) return Alert.alert('Нет заявок в статусе "Новые"');
+        const pending = houses.filter(h => h.status === 'pending').map(h => h.id);
+        if (pending.length === 0) return Alert.alert('Нет новых заявок');
         Alert.alert(
             `${status === 'approved' ? 'Одобрить' : 'Отклонить'} все`,
-            `Вы уверены, что хотите ${status === 'approved' ? 'одобрить' : 'отклонить'} все новые заявки?`,
+            `Подтвердите действие для ${pending.length} заявок`,
             [
                 { text: 'Отмена', style: 'cancel' },
                 {
-                    text: 'Да',
-                    onPress: () => {
-                        pendingIds.forEach((id) => updateStatus(id, status));
-                        const msg = `Обработано ${pendingIds.length} заявки(ок)`;
-                        if (Platform.OS === 'android') {
-                            ToastAndroid.show(msg, ToastAndroid.SHORT);
-                        } else {
-                            Alert.alert(msg);
-                        }
-                    },
+                    text: 'Да', onPress: async () => {
+                        for (const id of pending) await updateStatus(id, status);
+                        ToastAndroid.show('Обработано', ToastAndroid.SHORT);
+                    }
                 },
             ]
         );
     };
 
-    // Pull to refresh simulation
-    const onRefresh = useCallback(() => {
-        setRefreshing(true);
-        setTimeout(() => {
-            setRefreshing(false);
-            if (Platform.OS === 'android') {
-                ToastAndroid.show('Список обновлён', ToastAndroid.SHORT);
-            }
-        }, 500);
-    }, []);
-
     const renderItem = ({ item }: { item: House }) => (
         <View style={styles.card}>
-            <TouchableOpacity onPress={() => navigation.navigate('Home', { screen: 'HouseDetail', params: { id: item.id } })}>
+            <TouchableOpacity
+                onPress={() => navigation.navigate('HouseDetail', { id: item.id })}
+            >
                 <Text style={styles.name}>{item.name}</Text>
             </TouchableOpacity>
             <Text style={styles.desc}>{item.description}</Text>
-            <Text style={styles.status}>Статус: {item.status}</Text>
+            <Text style={[styles.status, {
+                color: item.status === 'approved' ? 'green' :
+                    item.status === 'rejected' ? 'red' : '#555',
+            }]}>
+                Статус: {item.status === 'pending' ? 'Новая' : item.status === 'approved' ? 'Одобрена' : 'Отклонена'}
+            </Text>
             {item.status === 'pending' && (
                 <View style={styles.actions}>
-                    <Button title="Одобрить" onPress={() => updateStatus(item.id, 'approved')} />
-                    <Button title="Отклонить" onPress={() => updateStatus(item.id, 'rejected')} />
+                    <Button title="Одобрить" color="green" onPress={() => updateStatus(item.id, 'approved')} />
+                    <Button title="Отклонить" color="red" onPress={() => updateStatus(item.id, 'rejected')} />
                 </View>
             )}
         </View>
@@ -81,20 +78,14 @@ export default function ModerationScreen() {
             <Text style={styles.title}>Модерация заявок</Text>
 
             <View style={styles.filters}>
-                {(['all', 'pending', 'approved', 'rejected'] as const).map((f) => (
+                {(['all', 'pending', 'approved', 'rejected'] as const).map(f => (
                     <TouchableOpacity
                         key={f}
                         style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
                         onPress={() => setFilter(f)}
                     >
                         <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-                            {f === 'all'
-                                ? 'Все'
-                                : f === 'pending'
-                                    ? 'Новые'
-                                    : f === 'approved'
-                                        ? 'Одобрённые'
-                                        : 'Отклонённые'}
+                            {f === 'all' ? 'Все' : f === 'pending' ? 'Новые' : f === 'approved' ? 'Одобрённые' : 'Отклонённые'}
                         </Text>
                     </TouchableOpacity>
                 ))}
@@ -109,7 +100,7 @@ export default function ModerationScreen() {
 
             <FlatList
                 data={filtered}
-                keyExtractor={(item) => item.id}
+                keyExtractor={item => item.id}
                 renderItem={renderItem}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             />
@@ -120,7 +111,7 @@ export default function ModerationScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, padding: 16, backgroundColor: '#fff' },
     title: { fontSize: 22, fontWeight: 'bold', marginBottom: 12 },
-    filters: { flexDirection: 'row', marginBottom: 12, flexWrap: 'wrap' },
+    filters: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
     filterBtn: {
         padding: 8,
         borderRadius: 20,
@@ -144,7 +135,7 @@ const styles = StyleSheet.create({
         padding: 12,
         marginBottom: 12,
     },
-    name: { fontSize: 18, fontWeight: '600', color: '#0066cc', marginBottom: 4 },
+    name: { fontSize: 18, fontWeight: '600', color: '#0066cc' },
     desc: { marginVertical: 8, color: '#555' },
     status: { marginBottom: 8 },
     actions: { flexDirection: 'row', justifyContent: 'space-around' },
