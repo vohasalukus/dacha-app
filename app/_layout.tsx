@@ -9,7 +9,7 @@ import LoginScreen from "@/app/login";
 import RegisterScreen from "@/app/register";
 import { useAuthStore } from '../store/authStore';
 import ModerationScreen from "@/app/moderation";
-import FavoritesScreen from '@/app/FavoritesScreen';
+
 
 
 
