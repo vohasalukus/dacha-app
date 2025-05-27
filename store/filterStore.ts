@@ -1,6 +1,8 @@
+// store/filterStore.ts
 import { create } from 'zustand';
 
 interface FilterState {
+    searchQuery: string;
     minPrice: string;
     maxPrice: string;
     region: string;
@@ -8,6 +10,9 @@ interface FilterState {
     city: string;
     country: string;
     wifi: boolean;
+    sauna: boolean;
+    pool: boolean;
+    billiards: boolean;
     alcohol: boolean;
     smoking: boolean;
     party: boolean;
@@ -17,7 +22,6 @@ interface FilterState {
     playstation_4: boolean;
     playstation_5: boolean;
     air_conditioner: boolean;
-    billiards: boolean;
     table_tennis: boolean;
     football_field: boolean;
     karaoke: boolean;
@@ -31,6 +35,7 @@ interface FilterState {
 }
 
 export const useFilterStore = create<FilterState>((set) => ({
+    searchQuery: '',
     minPrice: '',
     maxPrice: '',
     region: '',
@@ -38,6 +43,9 @@ export const useFilterStore = create<FilterState>((set) => ({
     city: '',
     country: '',
     wifi: false,
+    sauna: false,
+    pool: false,
+    billiards: false,
     alcohol: false,
     smoking: false,
     party: false,
@@ -47,7 +55,6 @@ export const useFilterStore = create<FilterState>((set) => ({
     playstation_4: false,
     playstation_5: false,
     air_conditioner: false,
-    billiards: false,
     table_tennis: false,
     football_field: false,
     karaoke: false,
@@ -58,6 +65,7 @@ export const useFilterStore = create<FilterState>((set) => ({
     outdoor_swimming_pool: false,
     set: (updates) => set((state) => ({ ...state, ...updates })),
     reset: () => set({
+        searchQuery: '',
         minPrice: '',
         maxPrice: '',
         region: '',
@@ -65,6 +73,9 @@ export const useFilterStore = create<FilterState>((set) => ({
         city: '',
         country: '',
         wifi: false,
+        sauna: false,
+        pool: false,
+        billiards: false,
         alcohol: false,
         smoking: false,
         party: false,
@@ -74,7 +85,6 @@ export const useFilterStore = create<FilterState>((set) => ({
         playstation_4: false,
         playstation_5: false,
         air_conditioner: false,
-        billiards: false,
         table_tennis: false,
         football_field: false,
         karaoke: false,

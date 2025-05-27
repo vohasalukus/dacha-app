@@ -5,9 +5,20 @@ import axios from 'axios';
 export interface PublicHouse {
     id: number;
     name: string;
+    city: string;
+    sauna: boolean;
+    indoor_swimming_pool: boolean;
+    outdoor_swimming_pool: boolean;
+    billiards: boolean;
+    district: string;
+    country: string;
     description: string;
+    region: string;
     image1: string | null;
     contact: string;
+    week_day_price: number;
+    wifi: boolean;
+    pool: boolean;
     price?: string;
     location?: string;
 }

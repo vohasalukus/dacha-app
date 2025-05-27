@@ -54,6 +54,7 @@ export default function ProfileScreen() {
                 <Text style={styles.label}>Роль:</Text>
                 <Text style={styles.value}>
                     {user.role === 'admin' ? 'Администратор' : 'Пользователь'}
+
                 </Text>
             </View>
 
@@ -86,12 +87,15 @@ export default function ProfileScreen() {
                 </View>
             )}
 
+
+
             <View style={styles.section}>
                 <Button
                     title="➕ Добавить свою дачу"
                     onPress={() => navigation.navigate('Home', { screen: 'AddHouse' })}
                 />
             </View>
+
 
             <View style={styles.section}>
                 <Button
