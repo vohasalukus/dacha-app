@@ -49,8 +49,14 @@ function StackNavigator() {
                 component={HomePage}
                 options={({ navigation }) => ({
                     title: 'Главная',
-                    headerLeft: () => <AuthButton navigation={navigation} />,
-                })}
+                    headerRight: () => (
+                        <AuthButton navigation={navigation} />
+                    ),
+                    headerRightContainerStyle: {
+                        paddingRight: 16
+                    },
+                })
+            }
             />
             <Stack.Screen name="HouseDetail" component={HouseDetailScreen} />
             <Stack.Screen name="AddHouse" component={AddHouseScreen} />
